@@ -164,6 +164,7 @@ class PaymentBuilder {
   bool _billingAddressRequired;
   bool _shippingAddressRequired;
   bool _phoneNumberRequred;
+  bool _isStripe = false;
 
   /// An object describing information requested in a Google Pay payment sheet
   ///
@@ -188,8 +189,7 @@ class PaymentBuilder {
     if (_shippingSupportedCountries != null) {
       List allowedCountryCodes = _shippingSupportedCountries;
       shippingAddressParameters["allowedCountryCodes"] = allowedCountryCodes;
-      paymentDataRequest["shippingAddressParameters"] =
-          shippingAddressParameters;
+      paymentDataRequest["shippingAddressParameters"] = shippingAddressParameters;
     }
     return paymentDataRequest;
   }
@@ -199,13 +199,16 @@ class PaymentBuilder {
   ///   * <p>The Google Pay API response will return an encrypted payment method capable of being charged
   ///   * by a supported gateway after payer authorization.
   ///   *
-  addGateway(String gateway, String gatewayMerchantId) {
+  addGateway(String gateway, {String gatewayMerchantId}) {
     if (_directTokenizationSpecification != null) {
       throw Exception(
           "You already set a DIRRECT. You can use DIRECT or Gateway.");
     }
     Map params = Map();
     params["gateway"] = gateway;
+    if (gateway == 'stripe') {
+      _isStripe = true;
+    }
     if (!isEmpty(gatewayMerchantId)) {
       params["gatewayMerchantId"] = gatewayMerchantId;
     }
@@ -213,6 +216,15 @@ class PaymentBuilder {
       "type": "PAYMENT_GATEWAY",
       "parameters": params
     };
+  }
+
+  addStripeKey(String publishableKey, String version) {
+    if (_isStripe) {
+      Map<dynamic, dynamic> params = _gatewayTokenizationSpecification['parameters'];
+      params['stripe:publishableKey'] = publishableKey;
+      params['stripe:version'] = version;
+      _gatewayTokenizationSpecification['parameters'] = params;
+    }
   }
 
   /// {@code DIRECT} Integration: Decrypt a response directly on your servers. This configuration has
@@ -328,14 +340,16 @@ class PaymentBuilder {
     if (_allowedCardAuthMethods == null) {
       throw Exception("Please provide information about card auth methods");
     }
+    print('ready');
+    if (_billingAddressRequired != null && _billingAddressRequired) {
+      print('not NULL');
+      parameters["billingAddressRequired"] = _billingAddressRequired;
+      Map billingAddressParameters = Map();
+      billingAddressParameters["format"] = "FULL";
+      parameters["billingAddressParameters"] = billingAddressParameters;
+    }
     parameters["allowedAuthMethods"] = _allowedCardAuthMethods;
     parameters["allowedCardNetworks"] = _allowedCardNetworks;
-    if (_billingAddressRequired != null) {
-      parameters["billingAddressRequired"] = _billingAddressRequired;
-    }
-    Map billingAddressParameters = Map();
-    billingAddressParameters["format"] = "FULL";
-    parameters["billingAddressParameters"] = billingAddressParameters;
     cardPaymentMethod["parameters"] = parameters;
     return cardPaymentMethod;
   }
