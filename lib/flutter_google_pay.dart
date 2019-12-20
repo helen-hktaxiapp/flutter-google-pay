@@ -36,8 +36,23 @@ class FlutterGooglePay {
       return false;
     }
     try {
+
+      Map request = {
+        "apiVersion": 2,
+        "apiVersionMinor": 0,
+        "allowedPaymentMethods": [
+          {
+            "type": "CARD",
+            "parameters": {
+              "allowedAuthMethods": ["PAN_ONLY", "CRYPTOGRAM_3DS"],
+              "allowedCardNetworks": ["AMEX", "MASTERCARD", "VISA"]
+            }
+          }
+        ]
+      };
+
       Map map = await _channel
-          .invokeMethod("is_available", {"environment": environment});
+          .invokeMethod("is_available", {"environment": environment, "request": request});
       return map['isAvailable'];
     } catch (error) {
       return false;
@@ -91,6 +106,8 @@ class PaymentItem {
   String currencyCode;
   String amount;
   String gateway;
+  String gatewayMerchantId;
+  List<PaymentNetwork> allowedCardNetworks;
   String stripeToken;
   String stripeVersion;
 
@@ -98,24 +115,20 @@ class PaymentItem {
       {@required this.currencyCode,
       @required this.amount,
       @required this.gateway,
+      @required this.gatewayMerchantId,
+      @required this.allowedCardNetworks,
       @required this.stripeToken,
       @required this.stripeVersion});
 
   Map toMap() {
-    Map args = Map();
-    args["amount"] = amount;
-    args["currencyCode"] = currencyCode;
-    if (!_validateAmount(amount)) {
-      throw Exception("Wrong amount: ${amount ?? "unknow"}");
-    }
-    if (!_validateCurrencyCode(currencyCode)) {
-      throw Exception("Wrong currency code: ${currencyCode ?? "unknow"}");
-    }
-
-    args["gateway"] = gateway;
-    args["stripeToken"] = stripeToken;
-    args["stripeVersion"] = stripeVersion;
-
+    Map<String, dynamic> args = {};
+    args.addAll({"amount": amount});
+    args.addAll({"currencyCode": currencyCode});
+    args.addAll({"gateway": gateway});
+    args.addAll({"gatewayMerchantId": gatewayMerchantId});
+    args.addAll({"allowedCardNetworks": allowedCardNetworks.map((item) => item.toString().split('.')[1]).toList()});
+    args.addAll({"stripeToken": stripeToken});
+    args.addAll({"stripeVersion": stripeVersion});
     return args;
   }
 }
@@ -138,21 +151,6 @@ class Result {
   ResultStatus status;
 
   Result(this.error, this.data, this.status, this.description);
-}
-
-bool _validateAmount(dynamic amount) {
-  return (amount?.toString() ?? "").length > 0 ?? false;
-}
-
-bool _validateCurrencyCode(dynamic currencyCode) {
-  bool isNotEmpty = (currencyCode?.toString() ?? "").length > 0 ?? false;
-  if (!isNotEmpty) {
-    return false;
-  }
-
-//  String lowerCaseCode = currencyCode.toString().toLowerCase();
-  //TODO currency check
-  return true;
 }
 
 class PaymentBuilder {
@@ -201,19 +199,19 @@ class PaymentBuilder {
   ///   * <p>The Google Pay API response will return an encrypted payment method capable of being charged
   ///   * by a supported gateway after payer authorization.
   ///   *
-  addGateway([String gateway, String gatewayMerchantId]) {
+  addGateway(String gateway, String gatewayMerchantId) {
     if (_directTokenizationSpecification != null) {
       throw Exception(
           "You already set a DIRRECT. You can use DIRECT or Gateway.");
     }
-    Map gateway = Map();
-    gateway["gateway"] = gateway;
+    Map params = Map();
+    params["gateway"] = gateway;
     if (!isEmpty(gatewayMerchantId)) {
-      gateway["gatewayMerchantId"] = gatewayMerchantId;
+      params["gatewayMerchantId"] = gatewayMerchantId;
     }
     _gatewayTokenizationSpecification = {
       "type": "PAYMENT_GATEWAY",
-      "parameters": gateway
+      "parameters": params
     };
   }
 
@@ -242,11 +240,12 @@ class PaymentBuilder {
   }
 
   /// Provide Google Pay API with a payment amount, currency, and amount status.
-  addTransactionInfo(String price, String currencyCode) {
+  addTransactionInfo(String price, String currencyCode, String countryCode) {
     _transactionInfo = {
       "totalPrice": price,
       "totalPriceStatus": "FINAL",
       "currencyCode": currencyCode,
+      "countryCode": countryCode
     };
   }
 
@@ -262,9 +261,9 @@ class PaymentBuilder {
   ///    "JCB",
   ///    "MASTERCARD",
   ///    "VISA"
-  addAllowedCardNetworks(List<String> allowedCardNetworks) {
+  addAllowedCardNetworks(List<PaymentNetwork> allowedCardNetworks) {
     if (allowedCardNetworks != null && allowedCardNetworks.length > 0) {
-      _allowedCardNetworks = allowedCardNetworks;
+      _allowedCardNetworks = allowedCardNetworks.map((item) => item.toString().split('.')[1]).toList();
     }
   }
 
@@ -275,9 +274,9 @@ class PaymentBuilder {
   ///
   /// The Google Pay API may return cards on file on Google.com (PAN_ONLY) and/or a device token on
   /// an Android device authenticated with a 3-D Secure cryptogram (CRYPTOGRAM_3DS).
-  addAllowedCardAuthMethods(List<String> allowedCardAuthMethods) {
+  addAllowedCardAuthMethods(List<AuthMethod> allowedCardAuthMethods) {
     if (allowedCardAuthMethods != null && allowedCardAuthMethods.length > 0) {
-      _allowedCardAuthMethods = allowedCardAuthMethods;
+      _allowedCardAuthMethods = allowedCardAuthMethods.map((item) => item.toString().split('.')[1]).toList();;
     }
   }
 
@@ -357,4 +356,15 @@ class PaymentBuilder {
 
 bool isEmpty(String value) {
   return value == null || value.length == 0;
+}
+
+enum PaymentNetwork {
+  VISA,
+  MASTERCARD,
+  AMEX
+}
+
+enum AuthMethod {
+  PAN_ONLY,
+  CRYPTOGRAM_3DS
 }

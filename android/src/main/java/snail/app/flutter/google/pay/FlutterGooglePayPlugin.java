@@ -21,6 +21,7 @@ import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -113,6 +114,8 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
      */
     private void callToDartOnPaymentSuccess(PaymentData paymentData) {
         String paymentInfo = paymentData.toJson();
+        Log.d("PaymentData:", String.valueOf(paymentInfo));
+        
         Map<String, Object> data = new HashMap<>();
         data.put("status", paymentInfo != null ? "SUCCESS" : "UNKNOWN");
         if (paymentInfo != null) {
@@ -198,6 +201,7 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
             JSONObject paymentData = new JSONObject((Map)mLastMethodCall.arguments);
             PaymentDataRequest request =
                     PaymentDataRequest.fromJson(paymentData.toString());
+            Log.d("request", String.valueOf(request));
             this.makePayment(request);
         } catch (Exception e) {
             callToDartOnError(e.getMessage());
@@ -208,13 +212,19 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
         String amount = mLastMethodCall.argument("amount");
         String currencyCode = mLastMethodCall.argument("currencyCode");
         String gateway = mLastMethodCall.argument("gateway");
+        String gatewayMerchantId = mLastMethodCall.argument("gatewayMerchantId");
         String stripeToken = mLastMethodCall.argument("stripeToken");
         String stripeVersion = mLastMethodCall.argument("stripeVersion");
+        ArrayList<String> allowedCardNetworks = mLastMethodCall.argument("allowedCardNetworks");
+
+        Object[] allowedCardNetworksArray = allowedCardNetworks.toArray();
 
         PaymentInfo paymentInfo = new PaymentInfo();
         paymentInfo.setTotalPrice(amount)
                 .setCurrencyCode(currencyCode)
                 .setGateway(gateway)
+                .setGatewayMerchantId(gatewayMerchantId)
+                .setAllowedCardNetworks(allowedCardNetworksArray)
                 .setStripeToken(stripeToken)
                 .setStripeVersion(stripeVersion);
 
@@ -241,10 +251,7 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
      * "https://developers.google.com/android/reference/com/google/android/gms/wallet/PaymentsClient.html#isReadyToPay(com.google.android.gms.wallet.IsReadyToPayRequest)">PaymentsClient#IsReadyToPay</a>
      */
     private void checkIsGooglePayAvailable() {
-        IsReadyToPayRequest request = IsReadyToPayRequest.newBuilder()
-                .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_CARD)
-                .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
-                .build();
+        IsReadyToPayRequest request = IsReadyToPayRequest.fromJson(mLastMethodCall.argument("request").toString());
         // The call to isReadyToPay is asynchronous and returns a Task. We need to provide an
         // OnCompleteListener to be triggered when the result of the call is known.
         Task<Boolean> task = client().isReadyToPay(request);

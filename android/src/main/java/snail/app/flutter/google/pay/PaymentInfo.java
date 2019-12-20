@@ -5,15 +5,24 @@ import com.google.android.gms.wallet.PaymentDataRequest;
 import com.google.android.gms.wallet.PaymentMethodTokenizationParameters;
 import com.google.android.gms.wallet.TransactionInfo;
 import com.google.android.gms.wallet.WalletConstants;
+import android.util.Log;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.ArrayList;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONArray;
 
 final class PaymentInfo {
     private String mTotalPrice;
     private String mCurrencyCode;
     private String mGateway;
+    private String mGatewayMerchantId;
+    private JSONArray mAllowedCardNetworks;
     private String mStripeToken;
     private String mStripeVersion;
+    private String mDirectTokenPublicKey;
 
     PaymentInfo() {
     }
@@ -33,6 +42,20 @@ final class PaymentInfo {
         return this;
     }
 
+    PaymentInfo setGatewayMerchantId(String mGatewayMerchantId) {
+        this.mGatewayMerchantId = mGatewayMerchantId;
+        return this;
+    }
+
+    PaymentInfo setAllowedCardNetworks(Object[] mAllowedCardNetworks) {
+        try {
+            this.mAllowedCardNetworks = new JSONArray(mAllowedCardNetworks);
+        } catch (JSONException e) {
+            return null;
+        }
+        return this;
+    }
+
     PaymentInfo setStripeToken(String mStripeToken) {
         this.mStripeToken = mStripeToken;
         return this;
@@ -43,46 +66,63 @@ final class PaymentInfo {
         return this;
     }
 
-
-    private PaymentMethodTokenizationParameters createTokenizationParameters() {
-        PaymentMethodTokenizationParameters.Builder builder = PaymentMethodTokenizationParameters.newBuilder()
-                .setPaymentMethodTokenizationType(WalletConstants.PAYMENT_METHOD_TOKENIZATION_TYPE_PAYMENT_GATEWAY);
-        if (mGateway != null) {
-            builder.addParameter("gateway", mGateway);
+    private JSONObject createTokenizationParameters() {
+        JSONObject tokenSpecs = new JSONObject();
+        JSONObject params = new JSONObject();
+        try {
+            if (mGateway != null && mStripeToken != null && mStripeVersion != null) {
+                params.put("gateway", mGateway);
+                params.put("stripe:publishableKey", mStripeToken);
+                params.put("stripe:version", mStripeVersion);
+                if (mGatewayMerchantId != null) {
+                    params.put("gatewayMerchantId", mGatewayMerchantId);
+                }
+                tokenSpecs.put("type", "PAYMENT_GATEWAY");
+                tokenSpecs.put("parameters", params);
+            }
+        } catch (JSONException e) {
+            return null;
         }
-        if (mStripeToken != null) {
-            builder.addParameter("stripe:publishableKey", mStripeToken);
-        }
-
-        if (mStripeVersion != null) {
-            builder.addParameter("stripe:version", mStripeVersion);
-        }
-        return builder.build();
+        return tokenSpecs;
     }
 
     PaymentDataRequest createPaymentDataRequest(boolean withTokenizationParameters) {
-        PaymentDataRequest.Builder request =
-                PaymentDataRequest.newBuilder()
-                        .setTransactionInfo(
-                                TransactionInfo.newBuilder()
-                                        .setTotalPriceStatus(WalletConstants.TOTAL_PRICE_STATUS_FINAL)
-                                        .setTotalPrice(mTotalPrice)
-                                        .setCurrencyCode(mCurrencyCode)
-                                        .build())
-                        .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_CARD)
-                        .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
-                        .setCardRequirements(
-                                CardRequirements.newBuilder()
-                                        .addAllowedCardNetworks(Arrays.asList(
-                                                WalletConstants.CARD_NETWORK_AMEX,
-                                                WalletConstants.CARD_NETWORK_DISCOVER,
-                                                WalletConstants.CARD_NETWORK_VISA,
-                                                WalletConstants.CARD_NETWORK_MASTERCARD))
-                                        .build());
-        if (withTokenizationParameters) {
-            request.setPaymentMethodTokenizationParameters(createTokenizationParameters());
-        }
-        return request.build();
-    }
+        JSONObject requestJson = new JSONObject();
+        try {
+            requestJson.put("apiVersion", 2);
+            requestJson.put("apiVersionMinor", 0);
 
+            JSONObject allowedPaymentMethod = new JSONObject();
+            allowedPaymentMethod.put("type", "CARD");
+
+            JSONObject params = new JSONObject();
+            String[] auths = {"PAN_ONLY", "CRYPTOGRAM_3DS"};
+            JSONArray authMethods = new JSONArray(auths);
+
+            params.put("allowedAuthMethods", authMethods);
+            params.put("allowedCardNetworks", mAllowedCardNetworks);
+
+            allowedPaymentMethod.put("type", "CARD");
+            allowedPaymentMethod.put("parameters", params);
+            if (withTokenizationParameters) {
+                if (createTokenizationParameters() != null) {
+                    allowedPaymentMethod.put("tokenizationSpecification", createTokenizationParameters());
+                }
+            }
+            JSONArray allowedPaymentMethods = new JSONArray();
+            allowedPaymentMethods.put(allowedPaymentMethod);
+            requestJson.put("allowedPaymentMethods", allowedPaymentMethods);
+
+            JSONObject transactionInfo = new JSONObject();
+            transactionInfo.put("totalPriceStatus", "FINAL");
+            transactionInfo.put("totalPrice", mTotalPrice);
+            transactionInfo.put("currencyCode", mCurrencyCode);
+
+            requestJson.put("transactionInfo", transactionInfo);
+            Log.d("request", String.valueOf(requestJson));
+        } catch (JSONException e) {
+            return null;
+        }
+        return PaymentDataRequest.fromJson(requestJson.toString());
+    }
 }
