@@ -61,8 +61,13 @@ class _MyAppState extends State<MyApp> {
     ///docs https://developers.google.com/pay/api/android/guides/tutorial
     PaymentBuilder pb = PaymentBuilder()
       // ..addDirectTokenizationSpecification('BOl2qpEDiwjhdJ+CtGr7EMhjW9Guma1looa3CttysmudCnDlVKV7gDbJCsvdXCd+oAGgEyhQ7nLyd8nw08uNYfA=')
-      ..addGateway('stripe')
-      ..addStripeKey('pk_test', "2019-12-03")
+      // ..addGateway('stripe')
+      // ..addStripeKey('pk_test', "2019-12-03")
+      ..addGatewayParams({
+        'gateway': 'stripe',
+        'stripe:version': '2019-12-03',
+        'stripe:publishableKey': 'pk_test'
+      })
       ..addTransactionInfo("1", 'HKD', 'HK')
       ..addAllowedCardAuthMethods([AuthMethod.PAN_ONLY, AuthMethod.CRYPTOGRAM_3DS])
       ..addAllowedCardNetworks([PaymentNetwork.VISA, PaymentNetwork.MASTERCARD, PaymentNetwork.AMEX])

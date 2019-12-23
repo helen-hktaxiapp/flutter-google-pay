@@ -165,6 +165,7 @@ class PaymentBuilder {
   bool _shippingAddressRequired;
   bool _phoneNumberRequred;
   bool _isStripe = false;
+  static const String STRIPE_VERSION = '2019-12-03';
 
   /// An object describing information requested in a Google Pay payment sheet
   ///
@@ -212,6 +213,22 @@ class PaymentBuilder {
     if (!isEmpty(gatewayMerchantId)) {
       params["gatewayMerchantId"] = gatewayMerchantId;
     }
+    _gatewayTokenizationSpecification = {
+      "type": "PAYMENT_GATEWAY",
+      "parameters": params
+    };
+  }
+
+  addGatewayParams(Map<String, String> gatewayParam) {
+    Map<String, String> params = {};
+    gatewayParam.forEach((k, v) {
+      params.addAll({k: v});
+    });
+
+    if (params['gateway'] == 'stripe' && isEmpty(params['stripe:version'])) {
+      params['stripe:version'] = STRIPE_VERSION;
+    }
+
     _gatewayTokenizationSpecification = {
       "type": "PAYMENT_GATEWAY",
       "parameters": params
