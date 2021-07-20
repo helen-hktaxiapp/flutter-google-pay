@@ -31,7 +31,7 @@ class FlutterGooglePay {
     return Result('unknow', null, ResultStatus.UNKNOWN, "");
   }
 
-  static Future<bool> isAvailable(String environment) async {
+  static Future<bool?> isAvailable(String environment) async {
     if (!Platform.isAndroid) {
       return false;
     }
@@ -51,8 +51,8 @@ class FlutterGooglePay {
         ]
       };
 
-      Map map = await _channel
-          .invokeMethod("is_available", {"environment": environment, "request": request});
+      Map map = await (_channel
+          .invokeMethod("is_available", {"environment": environment, "request": request}) as FutureOr<Map<dynamic, dynamic>>);
       return map['isAvailable'];
     } catch (error) {
       return false;
@@ -112,13 +112,13 @@ class PaymentItem {
   String stripeVersion;
 
   PaymentItem(
-      {@required this.currencyCode,
-      @required this.amount,
-      @required this.gateway,
-      @required this.gatewayMerchantId,
-      @required this.allowedCardNetworks,
-      @required this.stripeToken,
-      @required this.stripeVersion});
+      {required this.currencyCode,
+      required this.amount,
+      required this.gateway,
+      required this.gatewayMerchantId,
+      required this.allowedCardNetworks,
+      required this.stripeToken,
+      required this.stripeVersion});
 
   Map toMap() {
     Map<String, dynamic> args = {};
@@ -145,25 +145,25 @@ enum ResultStatus {
 }
 
 class Result {
-  String error;
-  String description;
-  Map data;
+  String? error;
+  String? description;
+  Map? data;
   ResultStatus status;
 
   Result(this.error, this.data, this.status, this.description);
 }
 
 class PaymentBuilder {
-  Map<String, dynamic> _gatewayTokenizationSpecification;
-  Map<String, dynamic> _directTokenizationSpecification;
-  Map<String, dynamic> _transactionInfo;
-  Map<String, dynamic> _merchantInfo;
-  List<String> _allowedCardNetworks;
-  List<String> _allowedCardAuthMethods;
-  List<String> _shippingSupportedCountries;
-  bool _billingAddressRequired;
-  bool _shippingAddressRequired;
-  bool _phoneNumberRequred;
+  Map<String, dynamic>? _gatewayTokenizationSpecification;
+  Map<String, dynamic>? _directTokenizationSpecification;
+  Map<String, dynamic>? _transactionInfo;
+  Map<String, dynamic>? _merchantInfo;
+  List<String>? _allowedCardNetworks;
+  List<String>? _allowedCardAuthMethods;
+  List<String>? _shippingSupportedCountries;
+  bool? _billingAddressRequired;
+  bool? _shippingAddressRequired;
+  bool? _phoneNumberRequred;
   bool _isStripe = false;
   static const String STRIPE_VERSION = '2019-12-03';
 
@@ -188,7 +188,7 @@ class PaymentBuilder {
       shippingAddressParameters["phoneNumberRequired"] = _phoneNumberRequred;
     }
     if (_shippingSupportedCountries != null) {
-      List allowedCountryCodes = _shippingSupportedCountries;
+      List? allowedCountryCodes = _shippingSupportedCountries;
       shippingAddressParameters["allowedCountryCodes"] = allowedCountryCodes;
       paymentDataRequest["shippingAddressParameters"] = shippingAddressParameters;
     }
@@ -200,7 +200,7 @@ class PaymentBuilder {
   ///   * <p>The Google Pay API response will return an encrypted payment method capable of being charged
   ///   * by a supported gateway after payer authorization.
   ///   *
-  addGateway(String gateway, {String gatewayMerchantId}) {
+  addGateway(String gateway, {String? gatewayMerchantId}) {
     if (_directTokenizationSpecification != null) {
       throw Exception(
           "You already set a DIRRECT. You can use DIRECT or Gateway.");
@@ -237,10 +237,10 @@ class PaymentBuilder {
 
   addStripeKey(String publishableKey, String version) {
     if (_isStripe) {
-      Map<dynamic, dynamic> params = _gatewayTokenizationSpecification['parameters'];
+      Map<dynamic, dynamic> params = _gatewayTokenizationSpecification!['parameters'];
       params['stripe:publishableKey'] = publishableKey;
       params['stripe:version'] = version;
-      _gatewayTokenizationSpecification['parameters'] = params;
+      _gatewayTokenizationSpecification!['parameters'] = params;
     }
   }
 
@@ -358,7 +358,7 @@ class PaymentBuilder {
       throw Exception("Please provide information about card auth methods");
     }
     print('ready');
-    if (_billingAddressRequired != null && _billingAddressRequired) {
+    if (_billingAddressRequired != null && _billingAddressRequired!) {
       print('not NULL');
       parameters["billingAddressRequired"] = _billingAddressRequired;
       Map billingAddressParameters = Map();
@@ -385,7 +385,7 @@ class PaymentBuilder {
   }
 }
 
-bool isEmpty(String value) {
+bool isEmpty(String? value) {
   return value == null || value.length == 0;
 }
 
