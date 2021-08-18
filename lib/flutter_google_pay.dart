@@ -52,7 +52,7 @@ class FlutterGooglePay {
       };
 
       Map map = await (_channel
-          .invokeMethod("is_available", {"environment": environment, "request": request}) as FutureOr<Map<dynamic, dynamic>>);
+          .invokeMethod("is_available", {"environment": environment, "request": request}));
       return map['isAvailable'];
     } catch (error) {
       return false;
