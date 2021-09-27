@@ -30,10 +30,15 @@ import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.common.PluginRegistry.Registrar;
 
+import androidx.annotation.NonNull;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
+import io.flutter.embedding.engine.plugins.activity.ActivityAware;
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
+
 /**
  * FlutterGooglePayPlugin
  */
-public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry.ActivityResultListener {
+public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry.ActivityResultListener, FlutterPlugin, ActivityAware{
     private static final String CHANNEL_NAME = "flutter_google_pay";
     private final String METHOD_REQUEST_PAYMENT = "request_payment";
     private final String METHOD_REQUEST_CUSTOM_PAYMENT = "request_payment_custom_payment";
@@ -42,6 +47,7 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
 
     private Result mLastResult;
     private MethodCall mLastMethodCall;
+
     /**
      * Arbitrarily-picked constant integer you define to track a request for payment data activity.
      *
@@ -56,6 +62,9 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
      */
     private PaymentsClient mPaymentsClient;
     private Activity mActivity;
+    private MethodChannel channel;
+    private FlutterGooglePayPlugin flutterGooglePayPlugin;
+
 
     private FlutterGooglePayPlugin(Activity activity) {
         this.mActivity = activity;
@@ -80,10 +89,46 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
      * Plugin registration.
      */
     public static void registerWith(Registrar registrar) {
-        final MethodChannel channel = new MethodChannel(registrar.messenger(), CHANNEL_NAME);
-        FlutterGooglePayPlugin plugin = new FlutterGooglePayPlugin(registrar.activity());
-        registrar.addActivityResultListener(plugin);
-        channel.setMethodCallHandler(plugin);
+        // final MethodChannel channel = new MethodChannel(registrar.messenger(), CHANNEL_NAME);
+        // FlutterGooglePayPlugin plugin = new FlutterGooglePayPlugin(registrar.activity());
+        // registrar.addActivityResultListener(plugin);
+        // channel.setMethodCallHandler(plugin);
+
+        initInstance(registrar.messenger(), registrar.activity());
+    }
+
+    public void initInstance(BinaryMessenger messenger, Activity activity){
+        channel = new MethodChannel(messenger, "flutter_google_pay");
+        flutterGooglePayPlugin = new FlutterGooglePayPlugin(activity);
+
+        channel.setMethodCallHandler(flutterGooglePayPlugin);
+    }
+
+    @Ovveride
+    public void onAttachedToEngine(FlutterPluginBinding binding){
+        // channel = MethodChannel(binding.getBinaryMessenger(), "flutter-google-pay");
+        initInstance(binding.getBinaryMessenger(), binding.getActivity());
+
+    }
+
+    @Override
+    public void onAttachedToActivity(ActivityPluginBinding binding){
+        binding.addActivityResultListener(flutterGooglePayPlugin);
+    }
+
+    @Override
+    public void onDetachedFromActivity(){
+        binding.removeActivityResultListener(flutterGooglePayPlugin);
+    }
+
+    @Override
+    public void onDetachedToEngine(FlutterPluginBinding binding){
+        channel.setMethodCallHandler(null);
+    }
+
+    @Override
+    public void onReattachedToActivityForConfigChanges(FlutterPluginBinding binding){
+        onAttachedToActivity();
     }
 
     @Override
